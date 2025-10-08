@@ -10,12 +10,11 @@ const proxyRoutes = require('./routes/proxy.routes');
 const healthRoutes = require('./routes/health.routes');
 const statsRoutes = require('./routes/stats.routes');
 
-// 导入服务并初始化
-const authService = require('./services/auth.service');
+// 导入服务初始化
 const keyService = require('./services/key.service');
 const statsService = require('./services/stats.service');
 
-// 初始化Express应用
+// 初始化Express
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -24,7 +23,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 路由
+// 路由注册
 app.use('/api/auth', authRoutes);
 app.use('/api/keys', keyRoutes);
 app.use('/api/proxy', proxyRoutes);
@@ -36,15 +35,12 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 初始化服务并启动服务器
+// 初始化服务并启动
 async function startServer() {
   try {
-    // 初始化服务
-    await authService.initialize();
     await keyService.initialize();
     await statsService.initialize();
     
-    // 启动服务器
     app.listen(PORT, () => {
       console.log(`服务器运行在 http://localhost:${PORT}`);
     });

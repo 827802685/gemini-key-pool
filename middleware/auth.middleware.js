@@ -1,4 +1,4 @@
-const authService = require('../services/auth.service');
+const jwt = require('jsonwebtoken');
 
 // 认证中间件
 exports.authenticate = (req, res, next) => {
@@ -11,13 +11,12 @@ exports.authenticate = (req, res, next) => {
   
   const token = authHeader.split(' ')[1];
   
-  // 验证令牌
-  const { valid, error } = authService.verifyToken(token);
-  
-  if (!valid) {
-    return res.status(401).json({ message: '无效的令牌或令牌已过期', error: error.message });
+  try {
+    // 验证令牌
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // 令牌有效，继续处理请求
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: '无效的令牌或令牌已过期' });
   }
-  
-  // 令牌有效，继续处理请求
-  next();
 };
