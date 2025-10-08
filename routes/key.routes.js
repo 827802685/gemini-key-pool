@@ -1,68 +1,51 @@
 const express = require('express');
 const router = express.Router();
 const keyService = require('../services/key.service');
-const authMiddleware = require('../middleware/auth.middleware').authenticate;
-
-// 所有密钥相关接口都需要认证
-router.use(authMiddleware);
+const { authenticate } = require('../middleware/auth.middleware');
 
 // 获取所有密钥
-router.get('/', async (req, res) => {
-  try {
-    const keys = await keyService.getAllKeys();
-    const stats = {
-      todayRequests: require('../services/stats.service').getTodayRequestCount()
-    };
-    
-    res.json({ keys, stats });
-  } catch (error) {
-    res.status(500).json({ message: '获取密钥失败', error: error.message });
-  }
+router.get('/', authenticate, async (req, res) => {
+    try {
+        const keys = await keyService.getAllKeys();
+        const stats = await keyService.getStats();
+        res.json({ keys, stats });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-// 添加新密钥
-router.post('/', async (req, res) => {
-  try {
-    const { key, name } = req.body;
-    
-    if (!key) {
-      return res.status(400).json({ message: '请提供API密钥' });
+// 添加密钥
+router.post('/', authenticate, async (req, res) => {
+    try {
+        const { key, name } = req.body;
+        const newKey = await keyService.addKey(key, name);
+        res.status(201).json(newKey);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
     }
-    
-    const newKey = await keyService.addKey(key, name);
-    res.status(201).json(newKey);
-  } catch (error) {
-    res.status(500).json({ message: '添加密钥失败', error: error.message });
-  }
 });
 
 // 测试密钥
-router.post('/:id/test', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const keys = await keyService.getAllKeys();
-    const key = keys.find(k => k.id === id);
-    
-    if (!key) {
-      return res.status(404).json({ message: '密钥不存在' });
+router.post('/:id/test', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await keyService.testKey(id);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
-    
-    const isValid = await keyService.testKeyValidity(key.key);
-    res.json({ valid: isValid });
-  } catch (error) {
-    res.status(500).json({ message: '测试密钥失败', error: error.message });
-  }
 });
 
 // 删除密钥
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await keyService.deleteKey(id);
-    res.json({ message: '密钥已删除' });
-  } catch (error) {
-    res.status(500).json({ message: '删除密钥失败', error: error.message });
-  }
+router.delete('/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await keyService.deleteKey(id);
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
 module.exports = router;
+    

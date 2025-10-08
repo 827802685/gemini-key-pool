@@ -181,7 +181,6 @@
                             </tr>
                         </thead>
                         <tbody id="keys-table-body" class="divide-y divide-gray-200">
-                            <!-- 密钥数据将通过JavaScript动态填充 -->
                             <tr>
                                 <td colspan="7" class="px-6 py-20 text-center text-gray-500">
                                     <div class="flex flex-col items-center">
@@ -251,351 +250,207 @@
     </div>
 
     <script>
-        // API基础URL
         const API_BASE_URL = '/api';
-        // 转发接口URL
         const PROXY_URL = `${window.location.origin}${API_BASE_URL}/proxy`;
-        // 认证令牌存储键名
         const AUTH_TOKEN_KEY = 'gemini_key_pool_auth';
         
-        // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', () => {
-            // 检查是否已登录
             checkAuthentication();
-            
-            // 绑定登录表单提交事件
             document.getElementById('login-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 login();
             });
-            
-            // 绑定密码显示/隐藏切换
             document.getElementById('toggle-password').addEventListener('click', togglePasswordVisibility);
-            
-            // 绑定退出按钮事件
             document.getElementById('logout-btn').addEventListener('click', logout);
         });
         
-        // 检查是否已认证
         function checkAuthentication() {
             const token = localStorage.getItem(AUTH_TOKEN_KEY);
-            
             if (token) {
-                // 验证令牌有效性
                 validateToken(token)
-                    .then(valid => {
-                        if (valid) {
-                            // 令牌有效，显示主界面
-                            showMainScreen();
-                        } else {
-                            // 令牌无效，要求重新登录
-                            localStorage.removeItem(AUTH_TOKEN_KEY);
-                            showLoginScreen();
-                        }
-                    })
-                    .catch(() => {
-                        // 验证失败，显示登录界面
-                        showLoginScreen();
-                    });
+                    .then(valid => valid ? showMainScreen() : showLoginScreen())
+                    .catch(() => showLoginScreen());
             } else {
-                // 无令牌，显示登录界面
                 showLoginScreen();
             }
         }
         
-        // 验证令牌有效性
         async function validateToken(token) {
             try {
                 const response = await fetch(`${API_BASE_URL}/auth/validate`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 return response.ok;
             } catch (error) {
-                console.error('令牌验证失败:', error);
                 return false;
             }
         }
         
-        // 登录
         async function login() {
-            const passwordInput = document.getElementById('password');
-            const password = passwordInput.value;
-            const errorElement = document.getElementById('login-error');
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('login-error');
             
             try {
                 const response = await fetch(`${API_BASE_URL}/auth/login`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password })
                 });
                 
                 if (response.ok) {
-                    const data = await response.json();
-                    // 存储认证令牌
-                    localStorage.setItem(AUTH_TOKEN_KEY, data.token);
-                    // 显示主界面
+                    const { token } = await response.json();
+                    localStorage.setItem(AUTH_TOKEN_KEY, token);
                     showMainScreen();
-                    // 重置表单
-                    passwordInput.value = '';
-                    errorElement.classList.add('hidden');
+                    errorEl.classList.add('hidden');
                 } else {
-                    // 登录失败
-                    errorElement.textContent = '密码错误，请重试';
-                    errorElement.classList.remove('hidden');
+                    errorEl.textContent = '密码错误，请重试';
+                    errorEl.classList.remove('hidden');
                 }
             } catch (error) {
-                errorElement.textContent = '登录失败，请检查网络连接';
-                errorElement.classList.remove('hidden');
-                console.error('登录错误:', error);
+                errorEl.textContent = '登录失败，请检查网络';
+                errorEl.classList.remove('hidden');
             }
         }
         
-        // 退出登录
         function logout() {
-            // 清除认证令牌
             localStorage.removeItem(AUTH_TOKEN_KEY);
-            // 显示登录界面
             showLoginScreen();
-            showNotification('已成功退出登录', 'success');
+            showNotification('已退出登录', 'success');
         }
         
-        // 切换密码可见性
         function togglePasswordVisibility() {
-            const passwordInput = document.getElementById('password');
-            const toggleIcon = document.getElementById('toggle-password');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.classList.remove('fa-eye');
-                toggleIcon.classList.add('fa-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                toggleIcon.classList.remove('fa-eye-slash');
-                toggleIcon.classList.add('fa-eye');
-            }
+            const input = document.getElementById('password');
+            const icon = document.getElementById('toggle-password');
+            input.type = input.type === 'password' ? 'text' : 'password';
+            icon.classList.toggle('fa-eye');
+            icon.classList.toggle('fa-eye-slash');
         }
         
-        // 显示登录界面
         function showLoginScreen() {
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('main-screen').classList.add('hidden');
         }
         
-        // 显示主界面并初始化
         function showMainScreen() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-screen').classList.remove('hidden');
-            
-            // 初始化主界面
             initMainScreen();
         }
         
-        // 初始化主界面
         function initMainScreen() {
-            // 显示转发URL
             document.getElementById('proxy-url').value = PROXY_URL;
             document.getElementById('curl-example-url').textContent = PROXY_URL;
-            
-            // 检查服务状态
             checkServiceStatus();
-            
-            // 加载密钥数据
             loadKeys();
-            
-            // 绑定刷新按钮事件
             document.getElementById('refresh-btn').addEventListener('click', () => {
                 loadKeys();
                 checkServiceStatus();
             });
-            
-            // 绑定添加密钥表单提交事件
             document.getElementById('add-key-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 addNewKey();
             });
-            
-            // 设置定时刷新（每30秒）
-            setInterval(() => {
-                loadKeys();
-                checkServiceStatus();
-            }, 30000);
+            setInterval(() => { loadKeys(); checkServiceStatus(); }, 30000);
         }
         
-        // 复制转发URL到剪贴板
-        function copyProxyUrl() {
-            const input = document.getElementById('proxy-url');
-            input.select();
-            document.execCommand('copy');
-            
-            showNotification('转发URL已复制到剪贴板', 'success');
-        }
-        
-        // 检查后端服务状态
-        async function checkServiceStatus() {
-            const indicator = document.getElementById('service-status-indicator');
-            const statusText = document.getElementById('service-status-text');
-            
-            try {
-                const response = await fetchWithAuth(`${API_BASE_URL}/health`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.status === 'UP') {
-                        indicator.className = 'status-indicator bg-secondary';
-                        statusText.className = 'text-secondary font-medium';
-                        statusText.textContent = '正常运行';
-                    } else {
-                        indicator.className = 'status-indicator bg-danger';
-                        statusText.className = 'text-danger font-medium';
-                        statusText.textContent = '未正常运行';
-                    }
-                } else {
-                    indicator.className = 'status-indicator bg-danger';
-                    statusText.className = 'text-danger font-medium';
-                    statusText.textContent = '未正常运行';
-                }
-            } catch (error) {
-                indicator.className = 'status-indicator bg-danger';
-                statusText.className = 'text-danger font-medium';
-                statusText.textContent = '未正常运行';
-            }
-        }
-        
-        // 带认证的请求
         async function fetchWithAuth(url, options = {}) {
             const token = localStorage.getItem(AUTH_TOKEN_KEY);
-            
-            // 设置默认headers
-            const headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${token}`
-            };
-            
-            // 合并选项
-            const fetchOptions = {
+            const response = await fetch(url, {
                 ...options,
-                headers
-            };
+                headers: { ...options.headers, 'Authorization': `Bearer ${token}` }
+            });
             
-            const response = await fetch(url, fetchOptions);
-            
-            // 处理401未授权错误
             if (response.status === 401) {
                 localStorage.removeItem(AUTH_TOKEN_KEY);
                 showLoginScreen();
                 showNotification('会话已过期，请重新登录', 'error');
                 throw new Error('未授权');
             }
-            
             return response;
         }
         
-        // 加载密钥数据
+        async function checkServiceStatus() {
+            const indicator = document.getElementById('service-status-indicator');
+            const statusText = document.getElementById('service-status-text');
+            
+            try {
+                const response = await fetchWithAuth(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                if (data.status === 'UP') {
+                    indicator.className = 'status-indicator bg-secondary';
+                    statusText.textContent = '正常运行';
+                } else {
+                    indicator.className = 'status-indicator bg-danger';
+                    statusText.textContent = '未正常运行';
+                }
+            } catch (error) {
+                indicator.className = 'status-indicator bg-danger';
+                statusText.textContent = '未正常运行';
+            }
+        }
+        
         async function loadKeys() {
             const tableBody = document.getElementById('keys-table-body');
             
             try {
                 const response = await fetchWithAuth(`${API_BASE_URL}/keys`);
-                
-                if (!response.ok) {
-                    throw new Error('获取密钥数据失败');
-                }
-                
-                const data = await response.json();
-                const keys = data.keys;
-                const stats = data.stats;
-                
+                const { keys, stats } = await response.json();
                 renderKeysTable(keys);
                 updateStats(keys, stats);
             } catch (error) {
-                if (error.message !== '未授权') { // 忽略未授权错误，因为已经处理
+                if (error.message !== '未授权') {
                     tableBody.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="px-6 py-20 text-center text-gray-500">
-                                <div class="flex flex-col items-center">
-                                    <i class="fa fa-exclamation-triangle text-warning text-3xl mb-4"></i>
-                                    <p>加载密钥数据失败: ${error.message}</p>
-                                    <button onclick="loadKeys()" class="mt-4 text-primary hover:underline">重试</button>
-                                </div>
-                            </td>
-                        </tr>
+                        <tr><td colspan="7" class="px-6 py-20 text-center text-gray-500">
+                            <i class="fa fa-exclamation-triangle text-warning text-3xl mb-4"></i>
+                            <p>加载失败: ${error.message}</p>
+                            <button onclick="loadKeys()" class="mt-4 text-primary">重试</button>
+                        </td></tr>
                     `;
                 }
             }
         }
         
-        // 渲染密钥表格
         function renderKeysTable(keys) {
             const tableBody = document.getElementById('keys-table-body');
             
             if (keys.length === 0) {
                 tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-6 py-20 text-center text-gray-500">
-                            <div class="flex flex-col items-center">
-                                <i class="fa fa-key text-gray-300 text-3xl mb-4"></i>
-                                <p>暂无API密钥，请添加新密钥</p>
-                            </div>
-                        </td>
-                    </tr>
+                    <tr><td colspan="7" class="px-6 py-20 text-center text-gray-500">
+                        <i class="fa fa-key text-gray-300 text-3xl mb-4"></i>
+                        <p>暂无API密钥，请添加新密钥</p>
+                    </td></tr>
                 `;
                 return;
             }
             
             tableBody.innerHTML = keys.map(key => `
-                <tr class="hover:bg-gray-50 transition-colors">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">${key.id}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">${maskApiKey(key.key)}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">${key.id}</td>
+                    <td class="px-6 py-4">${maskApiKey(key.key)}</td>
+                    <td class="px-6 py-4">
                         <div class="flex items-center">
                             <div class="w-full bg-gray-200 rounded-full h-2.5 mr-2">
                                 <div class="bg-primary h-2.5 rounded-full" style="width: ${key.remainingQuotaPercentage}%"></div>
                             </div>
-                            <span class="text-sm font-medium text-gray-900">${key.remainingQuota} / ${key.totalQuota}</span>
+                            <span>${key.remainingQuota} / ${key.totalQuota}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">${key.todayUsage || 0}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(key.status)}">
+                    <td class="px-6 py-4">${key.todayUsage || 0}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 inline-flex text-xs rounded-full ${getStatusBadgeClass(key.status)}">
                             ${getStatusText(key.status)}
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${formatDate(key.lastChecked)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button onclick="testKey('${key.id}')" class="text-primary hover:text-primary/80 mr-3">
-                            <i class="fa fa-check-circle mr-1"></i>测试
-                        </button>
-                        <button onclick="deleteKey('${key.id}')" class="text-danger hover:text-danger/80">
-                            <i class="fa fa-trash mr-1"></i>删除
-                        </button>
+                    <td class="px-6 py-4">${formatDate(key.lastChecked)}</td>
+                    <td class="px-6 py-4">
+                        <button onclick="testKey('${key.id}')" class="text-primary mr-3">测试</button>
+                        <button onclick="deleteKey('${key.id}')" class="text-danger">删除</button>
                     </td>
                 </tr>
             `).join('');
         }
         
-        // 更新统计数据
-        function updateStats(keys, stats) {
-            const totalKeys = keys.length;
-            const activeKeys = keys.filter(key => key.status === 'ACTIVE').length;
-            
-            document.getElementById('total-keys').textContent = totalKeys;
-            document.getElementById('active-keys').textContent = activeKeys;
-            document.getElementById('today-requests').textContent = stats?.todayRequests || 0;
-        }
-        
-        // 添加新密钥
         async function addNewKey() {
             const apiKey = document.getElementById('api-key').value;
             const keyName = document.getElementById('key-name').value;
@@ -603,154 +458,100 @@
             try {
                 const response = await fetchWithAuth(`${API_BASE_URL}/keys`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        key: apiKey,
-                        name: keyName
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: apiKey, name: keyName })
                 });
                 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || '添加密钥失败');
+                if (response.ok) {
+                    document.getElementById('add-key-form').reset();
+                    loadKeys();
+                    showNotification('密钥添加成功', 'success');
+                } else {
+                    const { message } = await response.json();
+                    throw new Error(message || '添加失败');
                 }
-                
-                // 清空表单
-                document.getElementById('add-key-form').reset();
-                
-                // 重新加载密钥列表
-                loadKeys();
-                
-                // 显示成功通知
-                showNotification('密钥添加成功', 'success');
             } catch (error) {
-                if (error.message !== '未授权') { // 忽略未授权错误
+                if (error.message !== '未授权') {
                     showNotification(error.message, 'error');
                 }
             }
         }
         
-        // 测试密钥有效性
         async function testKey(keyId) {
             try {
-                const response = await fetchWithAuth(`${API_BASE_URL}/keys/${keyId}/test`, {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('测试密钥失败');
-                }
-                
-                // 重新加载密钥列表
+                await fetchWithAuth(`${API_BASE_URL}/keys/${keyId}/test`, { method: 'POST' });
                 loadKeys();
-                
-                showNotification('密钥测试成功', 'success');
+                showNotification('测试成功', 'success');
             } catch (error) {
-                if (error.message !== '未授权') { // 忽略未授权错误
-                    showNotification('密钥测试失败: ' + error.message, 'error');
+                if (error.message !== '未授权') {
+                    showNotification('测试失败', 'error');
                 }
             }
         }
         
-        // 删除密钥
         async function deleteKey(keyId) {
-            if (!confirm('确定要删除这个密钥吗？此操作不可撤销。')) {
-                return;
-            }
+            if (!confirm('确定删除？')) return;
             
             try {
-                const response = await fetchWithAuth(`${API_BASE_URL}/keys/${keyId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('删除密钥失败');
-                }
-                
-                // 重新加载密钥列表
+                await fetchWithAuth(`${API_BASE_URL}/keys/${keyId}`, { method: 'DELETE' });
                 loadKeys();
-                
-                showNotification('密钥已删除', 'success');
+                showNotification('已删除', 'success');
             } catch (error) {
-                if (error.message !== '未授权') { // 忽略未授权错误
-                    showNotification('删除密钥失败: ' + error.message, 'error');
+                if (error.message !== '未授权') {
+                    showNotification('删除失败', 'error');
                 }
             }
         }
         
-        // 显示通知
+        function updateStats(keys, stats) {
+            document.getElementById('total-keys').textContent = keys.length;
+            document.getElementById('active-keys').textContent = keys.filter(k => k.status === 'ACTIVE').length;
+            document.getElementById('today-requests').textContent = stats?.todayRequests || 0;
+        }
+        
         function showNotification(message, type) {
             const notification = document.getElementById('notification');
             const icon = document.getElementById('notification-icon');
-            const messageEl = document.getElementById('notification-message');
+            const msgEl = document.getElementById('notification-message');
             
-            // 设置通知类型样式
-            if (type === 'success') {
-                notification.className = 'fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg bg-secondary text-white transform translate-y-0 opacity-100 transition-all duration-300 flex items-center';
-                icon.className = 'fa fa-check-circle mr-2';
-            } else if (type === 'error') {
-                notification.className = 'fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg bg-danger text-white transform translate-y-0 opacity-100 transition-all duration-300 flex items-center';
-                icon.className = 'fa fa-exclamation-circle mr-2';
-            }
+            notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transform translate-y-0 opacity-100 transition-all duration-300 flex items-center ${
+                type === 'success' ? 'bg-secondary text-white' : 'bg-danger text-white'
+            }`;
+            icon.className = `fa ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2`;
+            msgEl.textContent = message;
             
-            // 设置消息内容
-            messageEl.textContent = message;
-            
-            // 3秒后隐藏通知
             setTimeout(() => {
                 notification.className = 'fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center';
             }, 3000);
         }
         
-        // 工具函数：格式化日期
+        // 工具函数
         function formatDate(dateString) {
-            if (!dateString) return '从未检查';
-            
-            const date = new Date(dateString);
-            return date.toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            return dateString ? new Date(dateString).toLocaleString() : '从未检查';
         }
         
-        // 工具函数：隐藏部分API密钥
         function maskApiKey(key) {
-            if (key.length <= 8) return key;
-            return key.substring(0, 4) + '...' + key.substring(key.length - 4);
+            return key.length > 8 ? key.substring(0, 4) + '...' + key.substring(key.length - 4) : key;
         }
         
-        // 工具函数：获取状态标签样式
         function getStatusBadgeClass(status) {
-            switch (status) {
-                case 'ACTIVE':
-                    return 'bg-green-100 text-green-800';
-                case 'EXHAUSTED':
-                    return 'bg-red-100 text-red-800';
-                case 'INVALID':
-                    return 'bg-yellow-100 text-yellow-800';
-                default:
-                    return 'bg-gray-100 text-gray-800';
+            switch(status) {
+                case 'ACTIVE': return 'bg-green-100 text-green-800';
+                case 'EXHAUSTED': return 'bg-red-100 text-red-800';
+                case 'INVALID': return 'bg-yellow-100 text-yellow-800';
+                default: return 'bg-gray-100 text-gray-800';
             }
         }
         
-        // 工具函数：获取状态文本
         function getStatusText(status) {
-            switch (status) {
-                case 'ACTIVE':
-                    return '可用';
-                case 'EXHAUSTED':
-                    return '已用尽';
-                case 'INVALID':
-                    return '无效';
-                default:
-                    return '未知';
+            switch(status) {
+                case 'ACTIVE': return '可用';
+                case 'EXHAUSTED': return '已用尽';
+                case 'INVALID': return '无效';
+                default: return '未知';
             }
         }
     </script>
 </body>
 </html>
+    
