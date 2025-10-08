@@ -1,23 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const keyService = require('../services/key.service');
 
-router.get('/', async (req, res) => {
-    try {
-        // 简单检查KV连接
-        const kvStatus = await keyService.checkKVConnection();
-        
-        res.json({
-            status: kvStatus ? 'UP' : 'DOWN',
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        res.json({
-            status: 'DOWN',
-            timestamp: new Date().toISOString(),
-            error: error.message
-        });
-    }
+// 健康检查接口
+router.get('/', (req, res) => {
+  res.json({
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    service: 'gemini-key-pool',
+    noPasswordMode: !process.env.PANEL_PASSWORD
+  });
 });
 
 module.exports = router;

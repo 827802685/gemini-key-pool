@@ -11,9 +11,8 @@ const healthRoutes = require('./routes/health.routes');
 const statsRoutes = require('./routes/stats.routes');
 
 // 导入服务并初始化
-const authService = require('./services/auth.service');
-const keyService = require('./services/key.service');
 const statsService = require('./services/stats.service');
+const keyService = require('./services/key.service');
 
 // 初始化Express
 const app = express();
@@ -31,27 +30,29 @@ app.use('/api/proxy', proxyRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/stats', statsRoutes);
 
-// 前端页面路由
+// 前端页面路由（SPA支持）
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 初始化服务并启动服务器
-async function initialize() {
-    try {
-        await authService.initialize();
-        await keyService.initialize();
-        await statsService.initialize();
-        
-        app.listen(PORT, () => {
-            console.log(`服务器运行在端口 ${PORT}`);
-        });
-    } catch (error) {
-        console.error('初始化失败:', error);
-        process.exit(1);
-    }
+// 初始化服务并启动
+async function startServer() {
+  try {
+    // 初始化KV存储和统计服务
+    await keyService.initialize();
+    await statsService.initialize();
+    
+    // 启动服务器
+    app.listen(PORT, () => {
+      console.log(`服务器运行在端口 ${PORT}`);
+      console.log(`无密码模式: ${!process.env.PANEL_PASSWORD ? '启用' : '禁用'}`);
+    });
+  } catch (error) {
+    console.error('启动服务器失败:', error);
+    process.exit(1);
+  }
 }
 
-// 启动应用
-initialize();
+// 启动服务器
+startServer();
     

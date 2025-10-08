@@ -1,12 +1,12 @@
 {
   "name": "gemini-key-pool",
   "version": "1.0.0",
-  "description": "Gemini API密钥号池系统",
+  "description": "Gemini API密钥号池系统（支持无密码访问）",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "mkdir -p dist && cp -r public/* dist/ && cp server.js dist/ && cp -r routes dist/ && cp -r services dist/ && cp -r middleware dist/ && cp package.json dist/ && cp package-lock.json dist/"
+    "build": "mkdir -p dist && cp -r public/* dist/ && cp -r routes dist/ && cp -r services dist/ && cp -r middleware dist/ && cp server.js dist/ && cp package.json dist/ && cp package-lock.json dist/"
   },
   "dependencies": {
     "express": "^4.18.2",
